@@ -1,0 +1,244 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using MySql.Data.MySqlClient;
+
+namespace MegaBaza
+{
+    public partial class Form1 : Form
+    {
+
+        MySqlConnection connect = new MySqlConnection("server=localhost; user=root; database=bazadanych");
+        MySqlCommand command;
+        MySqlDataReader scanner;
+        string zapytanie = "";
+        List<Postac> herolist = new List<Postac>();
+        Postac wybranaPostac = null;
+
+      
+
+
+
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        #endregion Konstruktory
+
+        #region Metody
+        #region Ogólne
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            InicjalizacjaDanych();
+        }
+
+        private void lista_lisb_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                if (lista_lisb.SelectedIndex == -1)
+                {
+                    name_texb.Text = "";
+                    age_numUD.Value = 0;
+                    wybranaPostac = null;
+                }
+                else
+                {
+                    string[] tab = lista_lisb.Text.Split('.');
+                    Postac p = herolist.FirstOrDefault(x => x.Name.Equals(tab[1].Trim()));
+                    wybranaPostac = p;
+
+                    if (p != null)
+                    {
+                        name_texb.Text = p.Name;
+                        age_numUD.Value = p.Age;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                string byk = string.Format("Problem podczas wybierania postaci:\n{0}", ex.Message);
+                MessageBox.Show(byk, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+        }
+
+        void InicjalizacjaDanych()
+        {
+            try
+            {
+                if (connect.State == ConnectionState.Closed)
+                    connect.Open();
+
+                zapytanie = "select * from users";
+                command = new MySqlCommand(zapytanie, connect);
+                scanner = command.ExecuteReader();
+
+                herolist.Clear();
+                lista_lisb.Items.Clear();
+                int licznik = 1;
+
+                if (scanner.HasRows)
+                {
+                    while (scanner.Read())
+                    {
+                        herolist.Add(new Postac(scanner.GetInt32("id"), scanner["name"].ToString(), scanner.GetInt32("age")));
+                        lista_lisb.Items.Add(string.Format("{0}. {1}", licznik++, scanner["name"].ToString()));
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                string byk = string.Format("Problem podczas inicjalizacji danych:\n{0}", ex.Message);
+                MessageBox.Show(byk, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                connect.Close();
+
+                if (scanner != null)
+                {
+                    scanner.Dispose();
+                    scanner = null;
+                }
+            }
+        }
+
+        void WyczyscListe()
+        {
+            herolist.Clear();
+            lista_lisb.SelectedIndex = -1;
+            lista_lisb.Items.Clear();
+        }
+        #endregion Ogólne
+
+        private void pobierz_btn_Click(object sender, EventArgs e)
+        {
+            InicjalizacjaDanych();
+        }
+
+        private void aktualizuj_btn_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                int IndeksWybranejPostaci = lista_lisb.SelectedIndex;
+                if (wybranaPostac != null)
+                {
+                    if (connect.State == ConnectionState.Closed)
+                        connect.Open();
+
+                    zapytanie = string.Format("update users set name = '{0}', age = {1} where id = {2}", name_texb.Text, age_numUD.Value, wybranaPostac.Id);
+                    command = new MySqlCommand(zapytanie, connect);
+                    command.ExecuteNonQuery();
+
+                    MessageBox.Show("Postać zaktualizowana.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    InicjalizacjaDanych();
+                    lista_lisb.SelectedIndex = IndeksWybranejPostaci;
+                }
+                else
+                {
+                    MessageBox.Show("Wybierz postać którą chcesz zaktualizować.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                string byk = string.Format("", ex.Message);
+                MessageBox.Show(byk, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void wyczysc_btn_Click(object sender, EventArgs e)
+        {
+            WyczyscListe();
+        }
+
+        private void wyjscie_btn_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        #endregion Metody
+
+        private void dodaj_btn_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                //int IndeksWybranejPostaci = lista_lisb.SelectedIndex;
+                //if (wybranaPostac == null)
+                //{
+                if (connect.State == ConnectionState.Closed)
+                    connect.Open();
+
+                zapytanie = string.Format("insert into users(name, age) values ('{0}', {1})", name_texb.Text, age_numUD.Value);
+                command = new MySqlCommand(zapytanie, connect);
+                command.ExecuteNonQuery();
+
+                MessageBox.Show("Postać dodana.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                InicjalizacjaDanych();
+                //    lista_lisb.SelectedIndex = IndeksWybranejPostaci;
+                //}
+                //else
+                //{
+                //    MessageBox.Show("Wybierz postać którą chcesz zaktualizować.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                //}
+            }
+            catch (Exception ex)
+            {
+                string byk = string.Format("", ex.Message);
+                MessageBox.Show(byk, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void usun_btn_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (lista_lisb.SelectedIndex != -1)
+                {
+                    if (connect.State == ConnectionState.Closed)
+                        connect.Open();
+
+
+                    int IndeksWybranejPostaci = lista_lisb.SelectedIndex;
+                    if (wybranaPostac != null)
+                    {
+                        zapytanie = string.Format("delete from users where id = {0}", wybranaPostac.Id);
+                        command = new MySqlCommand(zapytanie, connect);
+                        command.ExecuteNonQuery();
+
+                        MessageBox.Show("Postać usunięta.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        InicjalizacjaDanych();
+
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Wybierz postać którą chcesz usunąć.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                string byk = string.Format("Problem podczas usuwania postaci:\n{0}", ex.Message);
+                MessageBox.Show(byk, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                connect.Close();
+            }
+        }
+
+
+      
+
+
+    }
+}
